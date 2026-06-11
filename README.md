@@ -27,8 +27,8 @@ az login
 ```
 
 Sandbox subscriptions often delete resources periodically. Recovery is the
-same command: re-run `./infra/setup.sh` (then update `app.yaml`'s endpoint
-value and redeploy if the Databricks App is live).
+same command: re-run `./infra/setup.sh` (then refresh the two secrets and
+redeploy if the Databricks App is live; see the deployment section).
 
 ### 2. Local development
 
@@ -67,30 +67,32 @@ APP=realtime-translator
 WS_PATH=/Workspace/Users/<your-user>/$APP
 ```
 
+The Azure endpoint and API key both reach the app through secret-backed
+app resources (`valueFrom` in `app.yaml`), so neither lives in the repo.
+
 ```bash
-# One-time: secret scope + app with the secret bound as a resource
+# One-time: secret scope + the two secrets + the app with resources bound
 databricks secrets create-scope realtime-translator -p $PROFILE
-source .env && databricks secrets put-secret realtime-translator azure-openai-api-key \
+source .env
+databricks secrets put-secret realtime-translator azure-openai-endpoint \
+  --string-value "$AZURE_OPENAI_ENDPOINT" -p $PROFILE
+databricks secrets put-secret realtime-translator azure-openai-api-key \
   --string-value "$AZURE_OPENAI_API_KEY" -p $PROFILE
-databricks apps create -p $PROFILE --json '{"name":"'$APP'","resources":[{"name":"azure-openai-api-key","secret":{"scope":"realtime-translator","key":"azure-openai-api-key","permission":"READ"}}]}'
+databricks apps create -p $PROFILE --json '{"name":"'$APP'","resources":[
+  {"name":"azure-openai-api-key","secret":{"scope":"realtime-translator","key":"azure-openai-api-key","permission":"READ"}},
+  {"name":"azure-openai-endpoint","secret":{"scope":"realtime-translator","key":"azure-openai-endpoint","permission":"READ"}},
+  {"name":"compose-endpoint","serving_endpoint":{"name":"databricks-claude-haiku-4-5","permission":"CAN_QUERY"}}]}'
 
 # Every release (sync respects .gitignore, so .env/.venv stay local)
 databricks sync . $WS_PATH -p $PROFILE
 databricks apps deploy $APP --source-code-path $WS_PATH -p $PROFILE
 ```
 
-The compose box queries a Foundation Model API endpoint as the app's service
-principal, which needs CAN_QUERY on that endpoint. Bind it as an app resource
-(one-time; keep the existing secret resource in the list):
+The `compose-endpoint` resource grants the app's service principal CAN_QUERY
+on the Foundation Model API endpoint used by the compose box.
 
-```bash
-databricks apps update $APP -p $PROFILE --json '{"resources":[
-  {"name":"azure-openai-api-key","secret":{"scope":"realtime-translator","key":"azure-openai-api-key","permission":"READ"}},
-  {"name":"compose-endpoint","serving_endpoint":{"name":"databricks-claude-haiku-4-5","permission":"CAN_QUERY"}}]}'
-```
-
-After recreating the Azure resource, update `AZURE_OPENAI_ENDPOINT` in
-`app.yaml`, refresh the secret (`put-secret` above), then sync + deploy.
+After recreating the Azure resource, re-run the two `put-secret` commands
+with the new `.env` values, then deploy again. `app.yaml` needs no edits.
 
 The long-lived WebSocket (browser → app → Azure) flows through the Databricks
 Apps proxy; audio frames every 200ms keep it from idling out (verified end to
