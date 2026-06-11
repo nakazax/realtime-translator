@@ -1,0 +1,712 @@
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-soft: #f7f7f5;
+  --ink: #0d0d0d;
+  --muted: #6f6f6a;
+  --soft: #9a9a95;
+  --line: #e7e7e4;
+  --line-strong: #d7d7d2;
+  --accent: #c45f26;
+  --accent-strong: #9e4717;
+  --success: #16824a;
+  --danger: #b43224;
+  --shadow: 0 24px 70px rgb(0 0 0 / 6%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Author display rules (e.g. .field { display: grid }) must not override
+   the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgb(247 247 245 / 85%) 0, #fff 160px),
+    var(--bg);
+  color: var(--ink);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(1240px, calc(100vw - 40px));
+  /* Fixed viewport height so the transcript columns are the scroll
+     containers; if the page itself grows, bottom-pinned auto-scroll on the
+     columns has nothing to scroll. */
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 18px 0 28px;
+}
+
+/* ----- top bar ----- */
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.brand h1 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  line-height: 1.05;
+}
+
+.status-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--soft);
+}
+
+.status-dot.live {
+  background: var(--success);
+}
+
+.status-dot.error {
+  background: var(--danger);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  justify-content: flex-end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfbfa;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+label {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+select {
+  height: 42px;
+  min-width: 130px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  outline: none;
+}
+
+input[type="range"]:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 3px solid rgb(196 95 38 / 24%);
+  outline-offset: 2px;
+}
+
+.mix-control {
+  min-width: 190px;
+}
+
+#mixValue {
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.mix-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.level-field {
+  min-width: 110px;
+}
+
+.toggle-field .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.toggle-field input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+.mute-button {
+  min-height: 0;
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.mute-button.muted {
+  background: #f3e3df;
+  border-color: #d8a79a;
+}
+
+/* Plays this column's not-yet-spoken translations in order. */
+.speak-all {
+  min-height: 0;
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.speak-all.playing {
+  background: #f3e3df;
+}
+
+/* When the queue button is visible it takes over the right-edge slot. */
+.speak-all:not([hidden]) ~ .mute-button {
+  margin-left: 0;
+}
+
+body.subtitle-mode .speak-all {
+  background: #1c1c1c;
+}
+
+meter {
+  width: 100%;
+  height: 14px;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  background: var(--ink);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+button.secondary {
+  border-color: var(--line-strong);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+button:disabled {
+  border-color: var(--line);
+  background: #ededeb;
+  color: var(--soft);
+  cursor: not-allowed;
+}
+
+/* ----- tooltips (native title waits ~1s; 0.5s keeps them out of the way
+   while hovering around, but quicker than the default) ----- */
+
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 300px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #f4f4ef;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.55;
+  text-transform: none;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  animation: tip-in 0.12s ease 0.5s forwards;
+}
+
+/* Right-edge elements flip the tooltip so it stays on screen. */
+.button-row [data-tip]:hover::after,
+.button-row [data-tip]:focus-visible::after,
+.transcript-card [data-tip]:hover::after,
+.transcript-card [data-tip]:focus-visible::after {
+  left: auto;
+  right: 0;
+}
+
+@keyframes tip-in {
+  to {
+    opacity: 1;
+  }
+}
+
+.capture-note {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #ecd9a8;
+  border-radius: 8px;
+  background: #fdf6e3;
+  color: #6b5616;
+  font-size: 0.88rem;
+}
+
+/* ----- transcripts ----- */
+
+.transcripts {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  /* Never collapse below a readable strip, whatever the drawers are doing. */
+  min-height: 220px;
+}
+
+.transcript-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.transcript-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.transcript {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: #2f2f2a;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.segment {
+  margin: 0 0 0.7em;
+}
+
+.segment:last-child {
+  margin-bottom: 0;
+}
+
+/* Translation-derived text (bidirectional mode); originals stay plain. */
+.segment.translated {
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+  color: #55554f;
+}
+
+body.subtitle-mode .segment.translated {
+  color: #cfcfc7;
+}
+
+/* Marks where a new run begins when subtitles are kept across Stop/Start. */
+.segment.divider {
+  margin: 10px 0;
+  color: var(--soft);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+body.subtitle-mode .segment.divider {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+/* Replays this segment's translation voice; revealed on hover so the
+   transcript stays readable. */
+.speak-button {
+  min-height: 0;
+  margin-left: 8px;
+  padding: 0 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  opacity: 0;
+  vertical-align: baseline;
+}
+
+.segment:hover .speak-button,
+.speak-button:focus-visible,
+.speak-button.playing {
+  opacity: 1;
+}
+
+.speak-button.playing {
+  border-color: var(--accent);
+  background: #f3e3df;
+}
+
+/* Already played (individually or via the column queue). */
+.speak-button.spoken {
+  border-color: var(--line);
+  color: var(--soft);
+}
+
+.segment.translated.spoken {
+  border-left-color: var(--line-strong);
+}
+
+/* Same-language echo from Azure (en->en, ja->ja): hidden from the transcript
+   (it doubled every utterance); still exported to CSV as kind=echo. */
+.segment.echo {
+  display: none;
+}
+
+/* The segment whose audio is being read aloud right now. */
+.segment.speaking {
+  border-radius: 6px;
+  background: rgb(196 95 38 / 9%);
+}
+
+body.subtitle-mode .segment.speaking {
+  background: rgb(196 95 38 / 18%);
+}
+
+body.subtitle-mode .speak-button {
+  border-color: #2a2a2a;
+  background: #1c1c1c;
+  color: #cfcfc7;
+}
+
+body.subtitle-mode .speak-button.playing {
+  border-color: var(--accent);
+  background: #2c1d15;
+}
+
+/* ----- compose box ----- */
+
+.compose {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.compose-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.compose textarea {
+  min-height: 88px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.compose-result {
+  margin: 0;
+  min-height: 88px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.compose-result.error {
+  color: var(--danger);
+}
+
+.compose-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ----- diagnostics drawer ----- */
+
+.drawer {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfbfa;
+}
+
+.drawer summary {
+  padding: 10px 14px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.guide {
+  /* The guide is a reference, not the main surface: opening it must never
+     squeeze the transcript columns out of the fixed-height shell. */
+  overflow: auto;
+  max-height: 42vh;
+  padding: 0 14px 14px;
+}
+
+/* Topic cards instead of a bullet wall. */
+.guide ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #3f3f3a;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.guide li {
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+}
+
+.guide li > strong:first-child {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 980px) {
+  .guide ul {
+    grid-template-columns: 1fr;
+  }
+}
+
+.drawer-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.6fr);
+  gap: 14px;
+  padding: 0 14px 14px;
+}
+
+.diagnostics {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.diagnostics div {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.diagnostics dt {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.diagnostics dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.84rem;
+  text-align: right;
+  word-break: break-all;
+}
+
+.log {
+  overflow: auto;
+  max-height: 220px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: #3d3d38;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.log-entry {
+  padding-bottom: 6px;
+}
+
+/* ----- fullscreen subtitle mode ----- */
+
+body.subtitle-mode {
+  background: #0c0c0c;
+}
+
+body.subtitle-mode .shell {
+  width: 100vw;
+  padding: 18px;
+}
+
+body.subtitle-mode .topbar,
+body.subtitle-mode .capture-note,
+body.subtitle-mode .drawer {
+  display: none;
+}
+
+body.subtitle-mode .transcripts {
+  flex: 1;
+  gap: 18px;
+}
+
+body.subtitle-mode .transcript-card {
+  border-color: #2a2a2a;
+  background: #141414;
+}
+
+body.subtitle-mode .transcript-card h2 {
+  color: #8d8d88;
+}
+
+body.subtitle-mode .badge {
+  background: #222;
+  color: #9a9a95;
+}
+
+body.subtitle-mode .transcript {
+  background: #141414;
+  color: #f4f4ef;
+  font-size: clamp(1.4rem, 2.6vw, 2.3rem);
+  line-height: 1.55;
+}
+
+/* Exit hint shown only in subtitle mode */
+body.subtitle-mode .shell::after {
+  content: "Esc to exit fullscreen";
+  position: fixed;
+  right: 16px;
+  bottom: 10px;
+  color: #555;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 980px) {
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
+  }
+
+  .transcripts {
+    grid-template-columns: 1fr;
+  }
+
+  .compose-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drawer-grid {
+    grid-template-columns: 1fr;
+  }
+}

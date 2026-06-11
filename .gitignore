@@ -1,0 +1,12 @@
+.env
+node_modules/
+__pycache__/
+*.pyc
+dist/
+build/
+.venv/
+.databricks/
+.claude/
+.pytest_cache/
+*.local.md
+client/test-fixture*.wav

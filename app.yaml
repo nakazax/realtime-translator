@@ -1,0 +1,10 @@
+command: ["python", "-m", "server"]
+env:
+  - name: AZURE_OPENAI_ENDPOINT
+    value: "https://hinak-foundry-20260610-fwcr-d1941.openai.azure.com/"
+  - name: AZURE_OPENAI_API_KEY
+    valueFrom: azure-openai-api-key
+  - name: AZURE_OPENAI_WHISPER_DEPLOYMENT
+    value: "gpt-realtime-whisper"
+  - name: AZURE_OPENAI_TRANSLATE_DEPLOYMENT
+    value: "gpt-realtime-translate"
