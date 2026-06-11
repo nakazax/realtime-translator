@@ -1,5 +1,7 @@
 # realtime-translator
 
+[日本語版 README はこちら](README.ja.md)
+
 Realtime translation / transcription web app for web meetings and in-person
 meetings, built on Azure AI Foundry realtime models
 (`gpt-realtime-translate` + `gpt-realtime-whisper`) and deployable to
@@ -16,6 +18,21 @@ Browser ──(same-origin WS /api/ws?target=ja)──> FastAPI ──(WS + api-
   ↑ AudioWorklet converts tab/mic audio to PCM16@24kHz chunks
   ↓ plays session.output_audio.delta via Web Audio, renders *_transcript.delta captions
 ```
+
+## Features
+
+- **Subtitles**: two columns, one-way (source/translation) or bidirectional
+  ja ⇄ en (left collects everything in English, right everything in Japanese)
+- **Three voice modes**: Manual (the operator plays translations with the
+  ▶ Speak queue, for in-person meetings) / Simultaneous (speaks as
+  translations arrive, for watching webinars) / After pause (waits for the
+  speaker to pause, then reads the queue, consecutive-interpretation style)
+- **Echo suppression**: segments that merely re-speak same-language input
+  (en→en, ja→ja) are detected, hidden, and never read aloud
+- **History**: subtitles survive Stop/Start (with a divider); Clear wipes,
+  Export downloads an Excel-ready CSV
+- **Compose box**: draft in Japanese, get natural spoken English via the
+  Databricks Foundation Model API (streaming)
 
 ## Setup
 
@@ -111,7 +128,7 @@ The app itself stores no conversation content. The FastAPI proxy only relays
 audio frames and session events between the browser and Azure OpenAI; it logs
 connection errors, never transcripts or audio. Subtitles and buffered
 translation audio live in browser memory only and are gone after a page
-reload (use Export for a CSV/Markdown copy).
+reload (use Export for a CSV copy).
 
 Speech is processed in real time by Azure OpenAI. Microsoft states that
 prompts (inputs) and completions (outputs) are not available to OpenAI, are
@@ -127,7 +144,7 @@ for the current terms.
 
 | Path | Purpose |
 |---|---|
-| `server/` | FastAPI backend: static serving, `/api/config`, `/api/ws` proxy |
+| `server/` | FastAPI backend: static serving, `/api/config`, `/api/ws` proxy, `/api/compose` |
 | `client/` | Vanilla JS frontend (no build step), ported from the OpenAI demo |
 | `infra/setup.sh` | Azure resource + model deployment provisioning |
 | `scripts/smoke-azure.mjs` | Zero-dep API verification matrix (mint/WS/WebRTC/CORS) |
