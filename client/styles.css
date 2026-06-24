@@ -679,6 +679,74 @@ body.subtitle-mode .transcript {
   line-height: 1.55;
 }
 
+/* ----- pause toggle (video-player pattern) ----- */
+
+.pause-toggle {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 40;
+  min-height: 0;
+  padding: 8px 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pause-toggle.active {
+  inset: 0;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.pause-toggle.active::after {
+  content: "Click or press Space to resume";
+  position: static;
+  z-index: auto;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  white-space: normal;
+  opacity: 0.5;
+  animation: none;
+}
+
+body.subtitle-mode .pause-toggle {
+  border-color: #444;
+  background: #1c1c1c;
+  color: #cfcfc7;
+}
+
+body.subtitle-mode .pause-toggle.active {
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.7);
+}
+
 /* Exit hint shown only in subtitle mode */
 body.subtitle-mode .shell::after {
   content: "Esc to exit fullscreen";

@@ -190,6 +190,9 @@
         </article>
       </section>
 
+      <button id="pauseButton" type="button" class="pause-toggle" hidden
+              data-tip="音声の取り込みを一時停止 / スペースキーでも切替">⏸</button>
+
       <details class="drawer" id="composeDrawer" open>
         <summary>発言を組み立てる / Compose in English</summary>
         <div class="compose">
@@ -247,6 +250,11 @@
               します (CSVには kind=echo で残ります)。
             </li>
             <li><strong>⛶</strong> フルスクリーン字幕モード。Escで戻ります。</li>
+            <li>
+              <strong>⏸ 一時停止</strong> セッション中に画面下部のボタンまたは <strong>スペースキー</strong>
+              を押すと音声の取り込みを一時停止できます。接続はそのままなので再開は瞬時です。
+              停止中はマイクレベルメーターだけ動き続けます。
+            </li>
             <li>
               <strong>発言を組み立てる</strong> 自分が英語で質問・コメントしたいときの下書き用。
               日本語を書いて「→ English」を押すと自然な話し言葉の英語になります

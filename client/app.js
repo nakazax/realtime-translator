@@ -40,6 +40,7 @@ const stopButton = document.querySelector("#stopButton");
 const clearButton = document.querySelector("#clearButton");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
+const pauseButton = document.querySelector("#pauseButton");
 const audioMix = document.querySelector("#audioMix");
 const mixControl = document.querySelector("#mixControl");
 const mixValue = document.querySelector("#mixValue");
@@ -218,6 +219,7 @@ let workletNode = null;
 let chunker = null;
 let sourceAudio = null;
 let stopping = false;
+let paused = false;
 let diagnostics = createEmptyDiagnostics();
 // Shared output context for every Pcm16Player. Created synchronously inside a
 // click handler so the browser's autoplay policy never leaves it suspended,
@@ -496,6 +498,7 @@ startButton.addEventListener("click", async () => {
   prepareTranscriptsForStart();
   resetDiagnostics();
   stopping = false;
+  paused = false;
   setControls({ running: true });
   setStatus(
     captureMode.value === "mic" ? "Requesting microphone" : "Pick what to share",
@@ -626,6 +629,23 @@ document.addEventListener("fullscreenchange", () => {
     column.scrollToBottom();
   }
 });
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== " " || event.repeat) {
+    return;
+  }
+  const tag = event.target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || event.target.isContentEditable) {
+    return;
+  }
+  if (sessions.length === 0 || stopping) {
+    return;
+  }
+  event.preventDefault();
+  togglePause();
+});
+
+pauseButton.addEventListener("click", togglePause);
 
 async function startSessions() {
   const sharedHandlers = {
@@ -912,6 +932,7 @@ async function startAudioPipeline(stream) {
       return;
     }
     updateInputMeter(data.rms ?? 0);
+    if (paused) return;
     for (const chunk of chunker.push(new Uint8Array(data.buffer))) {
       const base64 = bytesToBase64(chunk);
       for (const session of sessions) {
@@ -970,6 +991,8 @@ function applyAudioMix() {
 
 async function stop(message, state = "idle") {
   stopping = true;
+  paused = false;
+  updatePauseUI();
   stopPauseEngine();
   // Stop is the panic button: silence the ongoing readout too. The buffered
   // segments stay playable afterwards.
@@ -1003,6 +1026,33 @@ async function stop(message, state = "idle") {
   setStatus(message, state);
 }
 
+function togglePause() {
+  if (sessions.length === 0 || stopping) return;
+  paused = !paused;
+  if (paused) {
+    // Discard the partial chunk so stale audio isn't sent on resume.
+    chunker?.reset();
+  }
+  updatePauseUI();
+  logEvent("pause", paused ? "paused" : "resumed");
+}
+
+function updatePauseUI() {
+  pauseButton.textContent = paused ? "▶  PAUSED" : "⏸";
+  pauseButton.classList.toggle("active", paused);
+  document.body.classList.toggle("paused", paused);
+  if (paused) {
+    setStatus("Paused (spacebar to resume)", "idle");
+  } else if (sessions.length > 0) {
+    setStatus(
+      bidiToggle.checked
+        ? `Translating ja ⇄ en (${captureMode.value})`
+        : `Translating to ${targetLanguage.value} (${captureMode.value})`,
+      "live",
+    );
+  }
+}
+
 function setControls({ running }) {
   startButton.disabled = running;
   stopButton.disabled = !running;
@@ -1010,6 +1060,7 @@ function setControls({ running }) {
   targetLanguage.disabled = running || bidiToggle.checked;
   captureMode.disabled = running;
   bidiToggle.disabled = running;
+  pauseButton.hidden = !running;
 }
 
 function setStatus(message, state) {
@@ -1304,4 +1355,4 @@ function logEvent(type, detail) {
 
 // Debug handle for scripted verification (chrome-devtools MCP); the audio
 // path cannot be asserted through the DOM alone.
-window.__rt = { sessions: () => sessions, columns: () => columns };
+window.__rt = { sessions: () => sessions, columns: () => columns, paused: () => paused };
