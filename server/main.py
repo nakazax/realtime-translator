@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import mimetypes
 from pathlib import Path
 
 import websockets
@@ -20,6 +21,11 @@ from server.config import get_settings
 logger = logging.getLogger("realtime-translator")
 
 CLIENT_DIR = Path(__file__).resolve().parent.parent / "client"
+
+# Python's mimetypes has no .webmanifest entry, so StaticFiles would otherwise
+# serve it as application/octet-stream; some browsers require the real type
+# before they'll treat the app as installable.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 # Browser clients may only stream audio; session config is owned by the server.
 CLIENT_EVENT_ALLOWLIST = frozenset({"session.input_audio_buffer.append"})

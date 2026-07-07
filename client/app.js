@@ -12,6 +12,7 @@ import {
 } from "/audio-playback.js";
 import { buildTranscriptCsv, transcriptFileStamp } from "/transcript-export.js";
 import { isEchoOf } from "/echo-detect.js";
+import { captureModeAvailability, resolveCaptureMode } from "/device-caps.js";
 
 // Translation event family (verified on Azure; docs/api-verification.md),
 // plus the standard realtime family as a compatibility adapter.
@@ -41,6 +42,7 @@ const clearButton = document.querySelector("#clearButton");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
 const pauseButton = document.querySelector("#pauseButton");
+const subtitleExit = document.querySelector("#subtitleExit");
 const audioMix = document.querySelector("#audioMix");
 const mixControl = document.querySelector("#mixControl");
 const mixValue = document.querySelector("#mixValue");
@@ -238,6 +240,66 @@ function ensurePlaybackContext() {
   }
   return playbackContext;
 }
+
+// iOS suspends AudioContexts on phone calls, Siri, screen lock, and app
+// switches, reporting the nonstandard "interrupted" state; checking
+// state !== "running" covers that and plain "suspended". Contexts are only
+// resumed here, never created: creation must stay inside a user gesture.
+// (The capture and playback contexts stay separate on purpose: playback is
+// gesture-created and outlives Stop so buffered Speak segments stay playable,
+// while the capture context is torn down with each session.)
+function resumeAudioContexts(reason) {
+  for (const context of [playbackContext, captureContext]) {
+    if (context && context.state !== "running" && context.state !== "closed") {
+      logEvent("audio.resume", `${reason}: ${context.state}`);
+      void context.resume();
+    }
+  }
+}
+
+// Screen Wake Lock (iOS 16.4+): keeps the phone from auto-locking mid-session,
+// since locking suspends capture and the WebSocket. Feature-detected and
+// best-effort; failure never affects the session.
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if (!navigator.wakeLock || wakeLock) {
+    return;
+  }
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => {
+      wakeLock = null;
+      logEvent("wakelock", "released");
+    });
+    logEvent("wakelock", "acquired");
+  } catch (error) {
+    logEvent("wakelock", error.message);
+  }
+}
+
+function releaseWakeLock() {
+  wakeLock?.release().catch(() => {});
+  wakeLock = null;
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+  if (sessions.length === 0 || stopping) {
+    return;
+  }
+  resumeAudioContexts("visible");
+  // iOS releases the wake lock whenever the page leaves the foreground.
+  void requestWakeLock();
+});
+window.addEventListener("focus", () => {
+  if (sessions.length > 0 && !stopping) resumeAudioContexts("focus");
+});
+window.addEventListener("pageshow", () => {
+  if (sessions.length > 0 && !stopping) resumeAudioContexts("pageshow");
+});
 
 // ----- per-segment translation audio (manual Speak) -----
 
@@ -466,6 +528,23 @@ function assessEcho(segmentEl) {
   }
 }
 
+// tab/screen require getDisplayMedia, which iOS Safari lacks entirely. The
+// options stay visible but disabled so phone users can see what desktop adds.
+const captureAvailability = captureModeAvailability({
+  hasGetUserMedia: Boolean(navigator.mediaDevices?.getUserMedia),
+  hasGetDisplayMedia: Boolean(navigator.mediaDevices?.getDisplayMedia),
+});
+for (const option of captureMode.options) {
+  option.disabled = !captureAvailability[option.value];
+}
+captureMode.value = resolveCaptureMode(captureMode.value, captureAvailability);
+
+// On a phone the compose drawer would push the transcripts below the fold;
+// it stays one tap away.
+if (matchMedia("(max-width: 600px)").matches) {
+  document.querySelector("#composeDrawer").open = false;
+}
+
 applyAudioMix();
 configureColumns();
 updateCaptureNote();
@@ -519,6 +598,7 @@ startButton.addEventListener("click", async () => {
     startPauseEngine();
 
     await startAudioPipeline(captureStream);
+    void requestWakeLock();
     setStatus(
       bidiToggle.checked
         ? `Translating ja ⇄ en (${captureMode.value})`
@@ -611,7 +691,22 @@ async function composeTranslate() {
   }
 }
 
+// iPhone Safari has no element fullscreen, so ⛶ falls back to toggling the
+// same subtitle-mode styling directly, with a fixed ✕ button as the exit
+// (there is no Esc key on a phone).
+function setSubtitleFallback(active) {
+  document.body.classList.toggle("subtitle-mode", active);
+  subtitleExit.hidden = !active;
+  for (const column of Object.values(columns)) {
+    column.scrollToBottom();
+  }
+}
+
 fullscreenButton.addEventListener("click", async () => {
+  if (!document.documentElement.requestFullscreen) {
+    setSubtitleFallback(!document.body.classList.contains("subtitle-mode"));
+    return;
+  }
   if (document.fullscreenElement) {
     await document.exitFullscreen();
     return;
@@ -621,6 +716,10 @@ fullscreenButton.addEventListener("click", async () => {
   } catch (error) {
     logEvent("fullscreen", error.message);
   }
+});
+
+subtitleExit.addEventListener("click", () => {
+  setSubtitleFallback(false);
 });
 
 document.addEventListener("fullscreenchange", () => {
@@ -847,7 +946,10 @@ async function loadConfig() {
 function updateCaptureNote() {
   // Only genuine caveats get the warning banner; normal mode behavior is
   // documented in the quick guide instead.
-  if (captureMode.value === "screen") {
+  if (captureAvailability.displayCaptureNote) {
+    captureNote.textContent = captureAvailability.displayCaptureNote;
+    captureNote.hidden = false;
+  } else if (captureMode.value === "screen") {
     captureNote.textContent =
       "Pick \"Entire screen\" and enable system-audio sharing in the picker. If the picker offers no audio option (older macOS/Chrome), use Browser tab or Microphone capture instead.";
     captureNote.hidden = false;
@@ -994,6 +1096,7 @@ async function stop(message, state = "idle") {
   paused = false;
   updatePauseUI();
   stopPauseEngine();
+  releaseWakeLock();
   // Stop is the panic button: silence the ongoing readout too. The buffered
   // segments stay playable afterwards.
   stopManualPlayback();
