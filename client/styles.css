@@ -51,14 +51,18 @@ select {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: min(1240px, calc(100vw - 40px));
+  width: min(
+    1240px,
+    calc(100vw - 40px - env(safe-area-inset-left) - env(safe-area-inset-right))
+  );
   /* Fixed viewport height so the transcript columns are the scroll
      containers; if the page itself grows, bottom-pinned auto-scroll on the
      columns has nothing to scroll. */
   height: 100vh;
   height: 100dvh;
   margin: 0 auto;
-  padding: 18px 0 28px;
+  padding: calc(18px + env(safe-area-inset-top)) 0
+    calc(28px + env(safe-area-inset-bottom));
 }
 
 /* ----- top bar ----- */
@@ -644,7 +648,16 @@ body.subtitle-mode {
 
 body.subtitle-mode .shell {
   width: 100vw;
-  padding: 18px;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}
+
+/* Fallback exit for phones with no element Fullscreen API (see app.js). */
+.subtitle-exit {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 40;
 }
 
 body.subtitle-mode .topbar,
@@ -708,5 +721,87 @@ body.subtitle-mode .shell::after {
 
   .drawer-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .shell {
+    gap: 10px;
+    width: calc(
+      100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)
+    );
+    padding: calc(10px + env(safe-area-inset-top)) 0
+      calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .brand h1 {
+    font-size: 1.15rem;
+  }
+
+  .toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .toolbar .mix-control,
+  .toolbar .button-row,
+  .toolbar .level-field {
+    grid-column: 1 / -1;
+  }
+
+  .button-row {
+    flex-wrap: wrap;
+  }
+
+  .button-row button {
+    flex: 1 1 auto;
+  }
+
+  .transcript-card {
+    padding: 10px 12px;
+  }
+
+  .compose {
+    padding: 0 12px 12px;
+  }
+
+  .guide,
+  .drawer-grid {
+    padding: 0 12px 12px;
+  }
+}
+
+/* Touch devices have no hover: keep affordances that rely on it always
+   visible, and drop the hover-only tooltips (their content also lives in
+   the quick guide). */
+@media (hover: none) {
+  .speak-button {
+    opacity: 1;
+    padding: 2px 9px;
+  }
+
+  .mute-button,
+  .speak-all {
+    padding: 5px 12px;
+  }
+
+  [data-tip]:hover::after {
+    content: none;
+  }
+
+  body.subtitle-mode .shell::after {
+    content: none;
+  }
+
+  select,
+  textarea {
+    /* Prevents iOS Safari from auto-zooming the page on focus. */
+    font-size: 16px;
   }
 }

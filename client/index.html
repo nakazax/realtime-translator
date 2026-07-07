@@ -2,12 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>Realtime Translator</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%F0%9F%97%BE%3C/text%3E%3C/svg%3E"
     />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Translator" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -24,7 +34,7 @@
         <div class="toolbar" aria-label="Translation controls">
           <div
             class="field"
-            data-tip="音の取り込み元。Microphone=この端末のマイク (対面向け) / Browser tab=Web会議のタブ音声 (Start後のピッカーで「タブの音声も共有」をオン)"
+            data-tip="音の取り込み元。Microphone=この端末のマイク (対面向け) / Browser tab=Web会議のタブ音声 (Start後のピッカーで「タブの音声も共有」をオン)。iPhoneはマイクのみ利用可能"
           >
             <label for="captureMode">Capture</label>
             <select id="captureMode">
@@ -137,6 +147,15 @@
 
       <p class="capture-note" id="captureNote" hidden></p>
 
+      <button
+        id="subtitleExit"
+        type="button"
+        class="subtitle-exit"
+        hidden
+      >
+        ✕ 閉じる
+      </button>
+
       <section class="transcripts" aria-label="Transcripts">
         <article class="transcript-card">
           <h2>
@@ -246,7 +265,11 @@
               同言語で復唱されただけの段落 (エコー) は自動判定して非表示・読み上げ対象外に
               します (CSVには kind=echo で残ります)。
             </li>
-            <li><strong>⛶</strong> フルスクリーン字幕モード。Escで戻ります。</li>
+            <li>
+              <strong>⛶</strong> フルスクリーン字幕モード。Escで戻ります。iPhoneなど
+              フルスクリーンAPI非対応の端末では字幕ビューに切り替わり、右下の
+              <strong>✕ 閉じる</strong>で戻ります。
+            </li>
             <li>
               <strong>発言を組み立てる</strong> 自分が英語で質問・コメントしたいときの下書き用。
               日本語を書いて「→ English」を押すと自然な話し言葉の英語になります
@@ -262,7 +285,15 @@
             <li>
               <strong>Zoomで使う</strong> 手軽なのは <em>Microphone</em> のまま、Zoomの音声を
               スピーカーから出して拾わせる方法。確実なのはZoomに「ブラウザから参加」して
-              <em>Browser tab</em> をタブ音声付きで共有する方法です。
+              <em>Browser tab</em> をタブ音声付きで共有する方法です
+              (iPhoneは<em>Microphone</em>のみ利用可能)。
+            </li>
+            <li>
+              <strong>iPhoneで使う</strong> ブラウザのタブ/画面音声キャプチャに対応していないため
+              <em>Microphone</em>のみ使えます (対面向け)。翻訳セッション中は画面が自動ロック
+              されないよう端末側で保持しますが、他のアプリに切り替えたり画面をロックすると
+              マイクと接続が切れます。ホーム画面に追加すると通常のアプリのように起動できます
+              (共有ボタン→「ホーム画面に追加」)。
             </li>
             <li>
               <strong>データの扱い</strong> このアプリは会話内容を保存しません (中継サーバも
