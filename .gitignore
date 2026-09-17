@@ -10,3 +10,4 @@ build/
 .pytest_cache/
 *.local.md
 client/test-fixture*.wav
+*.local

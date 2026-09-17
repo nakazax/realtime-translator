@@ -8,6 +8,7 @@ set -euo pipefail
 #   ./infra/setup.sh                                          # Create new resources
 #   ./infra/setup.sh --rg my-rg --name my-foundry             # Use existing resource
 #   ./infra/setup.sh --region eastus                           # Custom region
+#   ./infra/setup.sh --sub <subscription-id>                   # Override the subscription (see also infra/subscription.local)
 #
 # When --rg and --name point to an existing resource, the script skips creation
 # and just deploys models (if missing) + writes .env.
@@ -25,7 +26,17 @@ SUFFIX="$(date +%Y%m%d)-${RAND}"
 
 RESOURCE_GROUP="${RESOURCE_GROUP:-realtime-translator-rg-${SUFFIX}}"
 RESOURCE_NAME="${RESOURCE_NAME:-realtime-translator-${SUFFIX}}"
+# Subscription resolution order: --sub / $SUBSCRIPTION, then infra/subscription.local (gitignored,
+# one subscription id per line; use it to pin a sandbox subscription whose model quota is free),
+# then the az CLI default. Rationale (2026-09-17): a shared subscription's GlobalStandard quota for
+# gpt-realtime-translate was fully held by another deployment, so creation there fails.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${SUBSCRIPTION:-}" && -f "$SCRIPT_DIR/subscription.local" ]]; then
+  SUBSCRIPTION="$(grep -vE '^\s*(#|$)' "$SCRIPT_DIR/subscription.local" | head -n1)"
+fi
 SUBSCRIPTION="${SUBSCRIPTION:-$(az account show --query id -o tsv)}"
+# Resource group tag; some cleanup jobs respect RemoveAfter=YYYY-MM-DD.
+REMOVE_AFTER="${REMOVE_AFTER:-$(date -v+90d +%Y-%m-%d 2>/dev/null || date -d '+90 days' +%Y-%m-%d)}"
 OWNER_TAG="${OWNER_TAG:-$(az account show --query user.name -o tsv)}"
 
 # Candidate regions for resource creation (GlobalStandard deployments are
@@ -64,7 +75,7 @@ az account set --subscription "$SUBSCRIPTION"
 if ! az group show --name "$RESOURCE_GROUP" &>/dev/null; then
   echo "Creating resource group $RESOURCE_GROUP in ${CANDIDATE_REGIONS[0]}..."
   az group create --name "$RESOURCE_GROUP" --location "${CANDIDATE_REGIONS[0]}" \
-    --tags "owner=$OWNER_TAG" --output none
+    --tags "owner=$OWNER_TAG" "Owner=$OWNER_TAG" "RemoveAfter=$REMOVE_AFTER" --output none
 fi
 
 # --- Create OpenAI resource (try each region until quota allows) ---
