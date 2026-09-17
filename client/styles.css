@@ -652,12 +652,25 @@ body.subtitle-mode .shell {
     max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
 }
 
-/* Fallback exit for phones with no element Fullscreen API (see app.js). */
-.subtitle-exit {
+.subtitle-controls {
   position: fixed;
   right: max(12px, env(safe-area-inset-right));
   bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 40;
+  display: flex;
+  gap: 8px;
+}
+
+.subtitle-btn {
+  min-height: 0;
+  padding: 7px 14px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: rgba(30, 30, 30, 0.85);
+  color: #e0e0dc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 body.subtitle-mode .topbar,

@@ -42,6 +42,9 @@ const clearButton = document.querySelector("#clearButton");
 const exportCsvButton = document.querySelector("#exportCsvButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
 const pauseButton = document.querySelector("#pauseButton");
+const subtitleControls = document.querySelector("#subtitleControls");
+const subtitleToggle = document.querySelector("#subtitleToggle");
+const subtitleClear = document.querySelector("#subtitleClear");
 const subtitleExit = document.querySelector("#subtitleExit");
 const audioMix = document.querySelector("#audioMix");
 const mixControl = document.querySelector("#mixControl");
@@ -696,7 +699,7 @@ async function composeTranslate() {
 // (there is no Esc key on a phone).
 function setSubtitleFallback(active) {
   document.body.classList.toggle("subtitle-mode", active);
-  subtitleExit.hidden = !active;
+  subtitleControls.hidden = !active;
   for (const column of Object.values(columns)) {
     column.scrollToBottom();
   }
@@ -718,12 +721,27 @@ fullscreenButton.addEventListener("click", async () => {
   }
 });
 
-subtitleExit.addEventListener("click", () => {
-  setSubtitleFallback(false);
+subtitleExit.addEventListener("click", async () => {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+  } else {
+    setSubtitleFallback(false);
+  }
 });
 
+subtitleToggle.addEventListener("click", () => {
+  if (sessions.length > 0 && !stopping) {
+    stopButton.click();
+  } else {
+    startButton.click();
+  }
+});
+subtitleClear.addEventListener("click", () => clearButton.click());
+
 document.addEventListener("fullscreenchange", () => {
-  document.body.classList.toggle("subtitle-mode", Boolean(document.fullscreenElement));
+  const active = Boolean(document.fullscreenElement);
+  document.body.classList.toggle("subtitle-mode", active);
+  subtitleControls.hidden = !active;
   for (const column of Object.values(columns)) {
     column.scrollToBottom();
   }
@@ -1164,6 +1182,7 @@ function setControls({ running }) {
   captureMode.disabled = running;
   bidiToggle.disabled = running;
   pauseButton.hidden = !running;
+  subtitleToggle.textContent = running ? "■ Stop" : "▶ Start";
 }
 
 function setStatus(message, state) {
