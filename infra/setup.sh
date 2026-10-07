@@ -69,18 +69,19 @@ echo "Resource Group: $RESOURCE_GROUP"
 echo "Resource Name:  $RESOURCE_NAME"
 echo ""
 
-az account set --subscription "$SUBSCRIPTION"
+# Every az call below passes --subscription instead of `az account set`, which would
+# change the default subscription for every other shell sharing ~/.azure.
 
 # --- Ensure resource group exists ---
-if ! az group show --name "$RESOURCE_GROUP" &>/dev/null; then
+if ! az group show --subscription "$SUBSCRIPTION" --name "$RESOURCE_GROUP" &>/dev/null; then
   echo "Creating resource group $RESOURCE_GROUP in ${CANDIDATE_REGIONS[0]}..."
-  az group create --name "$RESOURCE_GROUP" --location "${CANDIDATE_REGIONS[0]}" \
+  az group create --subscription "$SUBSCRIPTION" --name "$RESOURCE_GROUP" --location "${CANDIDATE_REGIONS[0]}" \
     --tags "owner=$OWNER_TAG" "Owner=$OWNER_TAG" "RemoveAfter=$REMOVE_AFTER" --output none
 fi
 
 # --- Create OpenAI resource (try each region until quota allows) ---
 existing_location=$(az cognitiveservices account show \
-  --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
+  --subscription "$SUBSCRIPTION" --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
   --query "location" -o tsv 2>/dev/null || true)
 
 if [[ -n "$existing_location" ]]; then
@@ -91,6 +92,7 @@ else
   for candidate in "${CANDIDATE_REGIONS[@]}"; do
     echo "Trying to create resource in $candidate..."
     if az cognitiveservices account create \
+        --subscription "$SUBSCRIPTION" \
         --name "$RESOURCE_NAME" \
         --resource-group "$RESOURCE_GROUP" \
         --kind OpenAI \
@@ -119,7 +121,7 @@ deploy_model() {
   local model_version="$3"
 
   existing=$(az cognitiveservices account deployment show \
-    --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
+    --subscription "$SUBSCRIPTION" --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
     --deployment-name "$deployment_name" \
     --query "name" -o tsv 2>/dev/null || true)
 
@@ -130,6 +132,7 @@ deploy_model() {
 
   echo "Deploying $deployment_name ($model_name $model_version)..."
   az cognitiveservices account deployment create \
+    --subscription "$SUBSCRIPTION" \
     --name "$RESOURCE_NAME" \
     --resource-group "$RESOURCE_GROUP" \
     --deployment-name "$deployment_name" \
@@ -147,11 +150,11 @@ deploy_model "$TRANSLATE_DEPLOYMENT" "$TRANSLATE_MODEL" "$MODEL_VERSION"
 
 # --- Output connection info ---
 ENDPOINT=$(az cognitiveservices account show \
-  --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
+  --subscription "$SUBSCRIPTION" --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
   --query "properties.endpoint" -o tsv)
 
 API_KEY=$(az cognitiveservices account keys list \
-  --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
+  --subscription "$SUBSCRIPTION" --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
   --query "key1" -o tsv)
 
 echo ""
@@ -162,7 +165,7 @@ echo "API Key:   ${API_KEY:0:8}...***"
 echo ""
 echo "Deployments:"
 az cognitiveservices account deployment list \
-  --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
+  --subscription "$SUBSCRIPTION" --name "$RESOURCE_NAME" --resource-group "$RESOURCE_GROUP" \
   --query "[].{name: name, model: properties.model.name, version: properties.model.version, sku: properties.model.skuName}" \
   -o table
 

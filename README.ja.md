@@ -103,6 +103,14 @@ CAN_QUERYをアプリのサービスプリンシパルに付与します。
 Azureリソースを再作成したときは、新しい `.env` の値で `put-secret` を2回
 やり直して再デプロイするだけです。`app.yaml` の編集は不要です。
 
+この復旧は `./infra/heal.sh` が無人で行います。`.env` のAzureリソースが残っていて
+アプリが動いているかを確かめ、リソースが消えていれば `setup.sh` の実行、
+シークレット2つの更新、再デプロイ、`scripts/check-app-ws.py` によるWebSocketの
+疎通確認までを行います。`PROFILE`、`APP`、`WS_PATH` は `infra/deploy.local`
+(gitignore、bashとして読み込み) に書きます。そこに `on_failure()` 関数を書くと、
+失敗時に1行のメッセージを受け取れます。サブスクリプションの定期削除の直後に
+launchdやcronで動かしてください。`--check` は確認だけを行います。
+
 長寿命のWebSocket (ブラウザ → アプリ → Azure) はDatabricks Appsのプロキシを
 通ります。200msごとの音声フレームが流れ続けるためアイドルタイムアウトには
 なりません (エンドツーエンドで検証済み)。
@@ -137,5 +145,7 @@ Azureリソースを再作成したときは、新しい `.env` の値で `put-s
 | `server/` | FastAPIバックエンド: 静的配信、`/api/config`、`/api/ws` プロキシ、`/api/compose` |
 | `client/` | Vanilla JSフロントエンド (ビルド不要)、OpenAIデモからの移植 |
 | `infra/setup.sh` | Azureリソース + モデルデプロイのプロビジョニング |
+| `infra/heal.sh` | 定期削除でAzureリソースが消えたときの再作成と再デプロイ |
+| `scripts/check-app-ws.py` | デプロイ済みアプリのWebSocket疎通確認 (`session.created` を待つ) |
 | `scripts/smoke-azure.mjs` | 依存ゼロのAPI検証マトリクス (mint/WS/WebRTC/CORS) |
 | `docs/api-verification.md` | 検証済みAzure API契約とプローブの証跡 |

@@ -111,6 +111,15 @@ on the Foundation Model API endpoint used by the compose box.
 After recreating the Azure resource, re-run the two `put-secret` commands
 with the new `.env` values, then deploy again. `app.yaml` needs no edits.
 
+`./infra/heal.sh` does that whole recovery unattended: it checks that the
+Azure resource behind `.env` still exists and the app is running, and when the
+resource is gone it runs `setup.sh`, refreshes both secrets, redeploys, and
+verifies the WebSocket path with `scripts/check-app-ws.py`. It reads
+`PROFILE`, `APP`, and `WS_PATH` from `infra/deploy.local` (gitignored, sourced
+as bash; an optional `on_failure()` function there receives a one-line
+message). Schedule it with launchd or cron shortly after your subscription's
+cleanup window; `--check` only reports.
+
 The long-lived WebSocket (browser → app → Azure) flows through the Databricks
 Apps proxy; audio frames every 200ms keep it from idling out (verified end to
 end).
@@ -147,5 +156,7 @@ for the current terms.
 | `server/` | FastAPI backend: static serving, `/api/config`, `/api/ws` proxy, `/api/compose` |
 | `client/` | Vanilla JS frontend (no build step), ported from the OpenAI demo |
 | `infra/setup.sh` | Azure resource + model deployment provisioning |
+| `infra/heal.sh` | Rebuild + redeploy when a cleanup job deleted the Azure resource |
+| `scripts/check-app-ws.py` | Deployed-app WebSocket check (waits for `session.created`) |
 | `scripts/smoke-azure.mjs` | Zero-dep API verification matrix (mint/WS/WebRTC/CORS) |
 | `docs/api-verification.md` | Verified Azure API contract and probe evidence |
