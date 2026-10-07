@@ -24,6 +24,15 @@ def fake_azure(monkeypatch):
             received.append(event)
             if event["type"] == "session.update":
                 await ws.send(json.dumps({"type": "session.updated"}))
+            elif event.get("audio") == "ERROR":
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "error": {"type": "server_error", "message": "transcription failed"},
+                        }
+                    )
+                )
             elif event["type"] == "session.input_audio_buffer.append":
                 await ws.send(
                     json.dumps(
@@ -105,6 +114,20 @@ def test_ws_proxy_relays_session_and_audio(client, fake_azure):
         session_update["session"]["audio"]["input"]["transcription"]["model"]
         == "gpt-realtime-whisper"
     )
+
+
+def test_ws_proxy_logs_and_relays_azure_errors(client, fake_azure, caplog):
+    with client.websocket_connect("/api/ws?target=ja") as ws:
+        ws.receive_json()  # session.created
+        ws.receive_json()  # session.updated
+        ws.send_text(
+            json.dumps({"type": "session.input_audio_buffer.append", "audio": "ERROR"})
+        )
+        error = ws.receive_json()
+        assert error["type"] == "error"
+
+    assert "Azure error event [ja]" in caplog.text
+    assert "transcription failed" in caplog.text
 
 
 def test_ws_proxy_filters_non_audio_client_events(client, fake_azure):

@@ -11,7 +11,7 @@ import {
   SILENT_FRAME_PEAK,
 } from "/audio-playback.js";
 import { buildTranscriptCsv, transcriptFileStamp } from "/transcript-export.js";
-import { isEchoOf } from "/echo-detect.js";
+import { isEchoOf, isStillEchoOf } from "/echo-detect.js";
 import { captureModeAvailability, resolveCaptureMode } from "/device-caps.js";
 
 // Translation event family (verified on Azure; docs/api-verification.md),
@@ -502,17 +502,32 @@ function scrollColumnOf(el) {
 // Azure's translation sessions re-speak input that is already in their
 // target language instead of staying silent (en->en, ja->ja). A translated
 // segment that is nearly contained in a recent original is therefore an
-// echo: dim it and keep it out of the Speak queue / auto-speak. Re-checked
-// on every delta until it trips; marking is sticky.
+// echo: hide it and keep it out of the Speak queue / auto-speak. Re-checked
+// on every delta. A marked segment is shown again once it no longer matches:
+// a segment keeps growing while deltas arrive within SEGMENT_GAP_MS, so a
+// sticky mark on its first words hid the whole run of translation after it.
 const ECHO_WINDOW_MS = 45000;
 const ECHO_ORIGINALS_CHECKED = 12;
 
 function assessEcho(segmentEl) {
-  if (segmentEl.dataset.echo) {
-    return;
-  }
   const ts = Number(segmentEl.dataset.ts ?? 0);
   const text = segmentText(segmentEl);
+  if (segmentEl.dataset.echo) {
+    const originals = [];
+    for (const column of Object.values(columns)) {
+      for (const original of column.element.querySelectorAll('.segment[data-kind="original"]')) {
+        if (Number(original.dataset.ts ?? 0) >= ts - ECHO_WINDOW_MS) {
+          originals.push(segmentText(original));
+        }
+      }
+    }
+    if (!isStillEchoOf(text, originals)) {
+      delete segmentEl.dataset.echo;
+      segmentEl.classList.remove("echo");
+      updateAllSpeakButtons();
+    }
+    return;
+  }
   for (const column of Object.values(columns)) {
     const originals = [
       ...column.element.querySelectorAll('.segment[data-kind="original"]'),

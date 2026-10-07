@@ -123,6 +123,7 @@ async def realtime_proxy(client_ws: WebSocket, target: str | None = None) -> Non
             async for message in azure_ws:
                 if isinstance(message, bytes):
                     message = message.decode("utf-8", errors="replace")
+                _log_azure_error(message, language)
                 await client_ws.send_text(message)
 
         tasks = [
@@ -141,6 +142,25 @@ async def realtime_proxy(client_ws: WebSocket, target: str | None = None) -> Non
     finally:
         await azure_ws.close()
         await _close_quietly(client_ws)
+
+
+def _log_azure_error(message: str, language: str) -> None:
+    """Record Azure ``error`` events, which otherwise reach only the browser.
+
+    A session can keep streaming one side (translation or source captions)
+    after Azure reports an error on the other, so these are the evidence for
+    "one column stopped". The prefix check skips parsing the audio deltas.
+    """
+    if '"error"' not in message[:120]:
+        return
+    try:
+        event = json.loads(message)
+    except json.JSONDecodeError:
+        return
+    if isinstance(event, dict) and event.get("type") == "error":
+        logger.warning(
+            "Azure error event [%s]: %s", language, json.dumps(event.get("error"))[:500]
+        )
 
 
 async def _close_quietly(client_ws: WebSocket, code: int = 1000, reason: str = "") -> None:
