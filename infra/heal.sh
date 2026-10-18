@@ -13,7 +13,9 @@ set -Eeuo pipefail
 # Databricks App is running. When the resource is gone it runs infra/setup.sh,
 # refreshes the two app secrets, redeploys the app, and verifies the WebSocket
 # path end to end with scripts/check-app-ws.py. Meant to run unattended (launchd
-# or cron) shortly after the subscription's cleanup window.
+# or cron) shortly after the subscription's cleanup window. A rebuild that fails
+# after setup.sh (for example on an expired Databricks login) resumes from the
+# secrets on the next run instead of reporting the new resource as healthy.
 #
 # Configuration: infra/deploy.local (gitignored), sourced as bash:
 #   PROFILE=<databricks-cli-profile>
@@ -120,7 +122,11 @@ if [[ -n "$AZURE_OPENAI_ENDPOINT" ]]; then
   account="$(retry 5 find_account)"
 fi
 
-if [[ -n "$account" && "$MODE" != "force" ]]; then
+# Marks a rebuild that created the Azure resource but did not finish redeploying
+# the app; the app still holds the old secrets, so the next run must resume.
+PENDING="$STATE_DIR/rebuild.pending"
+
+if [[ -n "$account" && "$MODE" != "force" && ! -f "$PENDING" ]]; then
   STEP="read the Databricks App status"
   state="$(retry 5 app_field 'd.get("app_status", {}).get("state", "")')"
   if [[ "$state" != "RUNNING" ]]; then
@@ -132,16 +138,25 @@ if [[ -n "$account" && "$MODE" != "force" ]]; then
 fi
 
 if [[ "$MODE" == "check" ]]; then
-  log "unhealthy: no Azure resource in $SUBSCRIPTION serves ${AZURE_OPENAI_ENDPOINT:-<no .env>}"
+  if [[ -n "$account" ]]; then
+    log "unhealthy: a rebuild of $account did not finish redeploying app $APP"
+  else
+    log "unhealthy: no Azure resource in $SUBSCRIPTION serves ${AZURE_OPENAI_ENDPOINT:-<no .env>}"
+  fi
   exit 1
 fi
 
-log "rebuilding (mode=$MODE, previous endpoint ${AZURE_OPENAI_ENDPOINT:-<none>})"
+if [[ -n "$account" && "$MODE" != "force" ]]; then
+  log "resuming an unfinished rebuild ($AZURE_OPENAI_ENDPOINT)"
+else
+  log "rebuilding (mode=$MODE, previous endpoint ${AZURE_OPENAI_ENDPOINT:-<none>})"
+  touch "$PENDING"
 
-STEP="infra/setup.sh"
-# setup.sh prints the full API key in its export hint; keep it out of the log.
-"$SCRIPT_DIR/setup.sh" | sed '/API_KEY\|API Key/d'
-load_env
+  STEP="infra/setup.sh"
+  # setup.sh prints the full API key in its export hint; keep it out of the log.
+  "$SCRIPT_DIR/setup.sh" | sed -E '/API_KEY|API Key/d'
+  load_env
+fi
 
 STEP="update the Databricks secrets"
 databricks secrets put-secret "$SECRET_SCOPE" azure-openai-endpoint \
@@ -157,5 +172,6 @@ STEP="verify the app WebSocket"
 app_url="$(app_field 'd["url"]')"
 "$REPO_ROOT/.venv/bin/python" "$REPO_ROOT/scripts/check-app-ws.py" --profile "$PROFILE" --url "$app_url"
 
+rm -f "$PENDING"
 log "rebuilt: $AZURE_OPENAI_ENDPOINT"
 notify "Azure resource rebuilt and app redeployed"
